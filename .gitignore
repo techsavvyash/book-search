@@ -1,3 +1,41 @@
 .venv/*
 *.out
 .pytest_cache/*
+
+.env
+# STEM-text-files
+
+# Node modules
+node_modules/
+bun.lockb
+
+# Bun build output
+dist/
+build/
+*.bun.js
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Output and results
+tools/analyse/server/batch-results/
+*.json
+*.csv
+
+# Environment files
+.env
+.env.*
+
+# TypeScript
+*.tsbuildinfo
+
+# Misc
+*.log
