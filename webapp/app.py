@@ -1,17 +1,28 @@
+"""
+Flask application factory for the book search web app.
+"""
+
 import logging
 from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-from .encoders import NumpyEncoder
-from .services.engine import StorySearchEngine
-from .services.feedback import FeedbackDB
-from .services.voice import VoiceHandler
-from .routes import bp as api_bp
+from library import (
+    StorySearchEngine,
+    FeedbackDB,
+    VoiceHandler,
+    NumpyEncoder,
+)
+from .routes import api_bp, web_bp
 
 
 def create_app() -> Flask:
-    """Application factory that wires up services, blueprints, and config."""
+    """
+    Application factory that wires up services, blueprints, and config.
+    
+    Returns:
+        Configured Flask application instance
+    """
     load_dotenv()
 
     logging.basicConfig(level=logging.INFO)
@@ -23,12 +34,14 @@ def create_app() -> Flask:
 
     # Initialize core services (singletons)
     search_engine = StorySearchEngine()
+    
     # Feedback/Voice are optional in local dev; avoid crashing when env vars are missing
     try:
         feedback_db = FeedbackDB()
     except Exception as exc:  # noqa: BLE001
         logging.getLogger(__name__).warning("FeedbackDB not initialized: %s", exc)
         feedback_db = None
+        
     try:
         voice_handler = VoiceHandler()
     except Exception as exc:  # noqa: BLE001
@@ -40,9 +53,8 @@ def create_app() -> Flask:
     app.config["FEEDBACK_DB"] = feedback_db
     app.config["VOICE_HANDLER"] = voice_handler
 
-    # Register API routes
+    # Register blueprints
     app.register_blueprint(api_bp)
+    app.register_blueprint(web_bp)
 
     return app
-
-

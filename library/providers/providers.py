@@ -1,3 +1,7 @@
+"""
+Multi-provider embedding model with fallback support.
+"""
+
 import logging
 import os
 import time
@@ -146,5 +150,3 @@ class APIEmbeddingModel:
 
     def get_sentence_embedding_dimension(self) -> int:
         return int(self.dimension)
-
-

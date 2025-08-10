@@ -1,3 +1,7 @@
+"""
+Text processing utilities using Google Generative AI.
+"""
+
 import logging
 import os
 
@@ -7,6 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 def translate_to_english(text: str) -> str:
+    """
+    Translate text to English if it's in a different language.
+    
+    Args:
+        text: Text to translate
+        
+    Returns:
+        Translated text in English, or original text if translation fails
+    """
     try:
         prompt = f"""
         Translate the following text to English if from a different language, or return the original text if already in english. Only return the translation, no additional text:
@@ -25,6 +38,18 @@ def translate_to_english(text: str) -> str:
 
 
 def translate_and_refine(text: str) -> str:
+    """
+    Translate and refine query text for better search results.
+    
+    Removes common filler phrases and conversational prefixes to extract
+    the core search intent.
+    
+    Args:
+        text: Raw query text
+        
+    Returns:
+        Cleaned and refined query text
+    """
     try:
         prompt = f"""
 You are a query cleaning assistant for a story search engine.
@@ -54,6 +79,15 @@ Now process this:
 
 
 def get_font(text: str) -> str:
+    """
+    Convert text to its native script representation.
+    
+    Args:
+        text: Text to convert
+        
+    Returns:
+        Text in its native script (e.g., Devanagari for Hindi)
+    """
     try:
         prompt = f"""
         Write the text in the script it's spoken, like text in devnagri script for Hindi, text in Arabic script for Arabic, etc. If the text is already in English, return 'as it is. Only return the scripted text, no additional text:
@@ -68,5 +102,3 @@ def get_font(text: str) -> str:
     except Exception as exc:  # noqa: BLE001
         logger.error("Font/Script conversion error: %s", exc)
         return text
-
-

@@ -1,3 +1,7 @@
+"""
+Hybrid story search engine combining semantic and lexical search.
+"""
+
 import ast
 import io
 import logging
@@ -5,7 +9,6 @@ import os
 import pickle
 import re
 import time
-from dataclasses import asdict
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -14,7 +17,7 @@ from fuzzywuzzy import fuzz
 from pinecone import Pinecone, ServerlessSpec
 
 from ..models import SearchResult, Story
-from .embeddings import APIEmbeddingModel
+from ..providers import APIEmbeddingModel
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +53,17 @@ def format_column(df: pd.DataFrame) -> pd.DataFrame:
 
 
 class StorySearchEngine:
+    """
+    Hybrid search engine for stories combining semantic and lexical search.
+    
+    Features:
+    - Multi-provider embedding support with graceful fallback
+    - Pinecone vector database integration (optional)
+    - Fuzzy matching for character names and keywords
+    - Weighted scoring across different story attributes
+    - Backup/restore functionality for offline operation
+    """
+
     def __init__(self) -> None:
         self.model = APIEmbeddingModel()
         self.pc: Optional[Pinecone] = None
@@ -172,6 +186,16 @@ class StorySearchEngine:
             return []
 
     def load_data(self, csv_path: Optional[str] = None, csv_data: Optional[str] = None) -> None:
+        """
+        Load story data from CSV file or string.
+        
+        Args:
+            csv_path: Path to CSV file
+            csv_data: CSV data as string
+            
+        Raises:
+            ValueError: If neither csv_path nor csv_data is provided
+        """
         if csv_data:
             df = pd.read_csv(io.StringIO(csv_data))
             if "story_id" in df.columns:
@@ -256,61 +280,24 @@ class StorySearchEngine:
 
     @staticmethod
     def _keyword_search(query: str, field_values: List[str]) -> float:
+        """
+        Perform keyword-based search with fuzzy matching.
+        
+        Args:
+            query: Search query
+            field_values: List of field values to search in
+            
+        Returns:
+            Average relevance score (0-1)
+        """
         if not field_values or not query.strip():
             return 0.0
+        
         stop_words = {
-            "a",
-            "an",
-            "the",
-            "and",
-            "or",
-            "but",
-            "in",
-            "on",
-            "at",
-            "to",
-            "for",
-            "of",
-            "with",
-            "by",
-            "from",
-            "up",
-            "about",
-            "into",
-            "through",
-            "during",
-            "before",
-            "after",
-            "above",
-            "below",
-            "between",
-            "among",
-            "is",
-            "are",
-            "was",
-            "were",
-            "be",
-            "been",
-            "being",
-            "have",
-            "has",
-            "had",
-            "do",
-            "does",
-            "did",
-            "will",
-            "would",
-            "should",
-            "could",
-            "can",
-            "may",
-            "might",
-            "must",
-            "story",
-            "stories",
-            "tale",
-            "book",
-            "novel",
+            "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "up",
+            "about", "into", "through", "during", "before", "after", "above", "below", "between", "among", "is",
+            "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would",
+            "should", "could", "can", "may", "might", "must", "story", "stories", "tale", "book", "novel",
         }
 
         query_words = [
@@ -336,11 +323,22 @@ class StorySearchEngine:
         return float(total_score) / float(len(query_words))
 
     def search(self, query: str, top_k: int = 20) -> List[SearchResult]:
+        """
+        Perform hybrid search combining semantic and lexical matching.
+        
+        Args:
+            query: Search query string
+            top_k: Maximum number of results to return
+            
+        Returns:
+            List of SearchResult objects sorted by relevance
+        """
         if not query.strip() or not self.stories:
             return []
 
         results: Dict[str, Dict] = {}
 
+        # Semantic search via Pinecone
         if self.index:
             try:
                 query_embedding = self.model.encode([query])[0]
@@ -398,11 +396,10 @@ class StorySearchEngine:
         return search_results[:top_k]
 
     def get_stats(self) -> Dict[str, object]:
+        """Get search engine statistics."""
         return {
             "total_stories": len(self.stories),
             "pinecone_connected": self.index is not None,
             "embedding_provider": self.model.provider,
             "embedding_dimension": self.model.dimension,
         }
-
-

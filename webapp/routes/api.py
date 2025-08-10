@@ -1,26 +1,25 @@
+"""
+API routes for the book search web application.
+"""
+
 import io
 import os
 import tempfile
 from dataclasses import asdict
 from typing import Any, Dict, List
 
-from flask import Blueprint, Response, current_app, jsonify, render_template, request
+from flask import Blueprint, Response, current_app, jsonify, request
 from werkzeug.utils import secure_filename
 from pydub import AudioSegment
 
-from .utils import get_font, translate_and_refine, translate_to_english
-
+from library import translate_and_refine, translate_to_english, get_font
 
 bp = Blueprint("api", __name__)
 
 
-@bp.route("/")
-def home() -> str:
-    return render_template("index.html")
-
-
 @bp.route("/health", methods=["GET"])
 def health_check() -> Response:
+    """Health check endpoint returning system status."""
     stats = current_app.config["SEARCH_ENGINE"].get_stats()
     return jsonify(
         {
@@ -35,6 +34,7 @@ def health_check() -> Response:
 
 @bp.route("/search", methods=["POST"])
 def search_stories() -> Response:
+    """Search for stories using hybrid semantic and lexical search."""
     data = request.get_json() or {}
     query = (data.get("query") or "").strip()
     if not query:
@@ -59,6 +59,7 @@ def search_stories() -> Response:
 
 @bp.route("/upload", methods=["POST"])
 def upload_data() -> Response:
+    """Upload CSV data to populate the search index."""
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
     file = request.files["file"]
@@ -71,6 +72,7 @@ def upload_data() -> Response:
 
 @bp.route("/submit-feedback", methods=["POST"])
 def submit_feedback() -> Response:
+    """Submit user feedback for a search result."""
     data = request.get_json() or {}
     if not {"query", "story_id", "feedback"}.issubset(data):
         return jsonify({"error": "Missing required fields"}), 400
@@ -86,6 +88,7 @@ def submit_feedback() -> Response:
 
 @bp.route("/voice-search", methods=["POST"])
 def voice_search() -> Response:
+    """Search using voice input (speech-to-text)."""
     if "audio" not in request.files:
         return jsonify({"error": "No audio file provided"}), 400
 
@@ -140,6 +143,7 @@ def voice_search() -> Response:
 
 @bp.route("/sync", methods=["POST"])
 def sync_from_pinecone() -> Response:
+    """Sync stories from Pinecone vector database."""
     engine = current_app.config["SEARCH_ENGINE"]
     if not engine.index:
         return jsonify({"error": "Pinecone not connected"}), 400
@@ -151,6 +155,7 @@ def sync_from_pinecone() -> Response:
 
 @bp.route("/delete-stories", methods=["POST"])
 def delete_stories() -> Response:
+    """Delete stories from the search index."""
     engine = current_app.config["SEARCH_ENGINE"]
     if not engine.index:
         return jsonify({"error": "Pinecone not connected"}), 400
@@ -181,6 +186,7 @@ def delete_stories() -> Response:
 
 @bp.route("/list-stories", methods=["GET"])
 def list_stories() -> Response:
+    """List all available stories."""
     engine = current_app.config["SEARCH_ENGINE"]
     stories = [
         {"id": sid, "filename": story.filename, "title": story.filename.replace(".txt", "").replace("-", " ").title()}
@@ -191,6 +197,7 @@ def list_stories() -> Response:
 
 @bp.route("/get-feedback", methods=["GET"])
 def get_feedback() -> Response:
+    """Get all feedback records."""
     if current_app.config.get("FEEDBACK_DB") is None:
         return jsonify({"feedback": []})
     feedback_records = current_app.config["FEEDBACK_DB"].get_all_feedback()
@@ -206,6 +213,3 @@ def get_feedback() -> Response:
         for rec in feedback_records
     ]
     return jsonify({"feedback": formatted})
-
-
-
