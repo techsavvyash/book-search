@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 from fuzzywuzzy import fuzz
 from pinecone import Pinecone, ServerlessSpec
+from supabase import create_client, Client
 
 from ..models import SearchResult, Story
 from ..providers import APIEmbeddingModel
@@ -150,8 +151,39 @@ class StorySearchEngine:
         """
         logger.info("Sync from Pinecone is currently a no-op in the refactored service.")
 
+    def _save_stories_supabase(self):
+        """Save stories to Supabase storage"""
+        
+        FILE_PATH = self.stories_backup_file # local path
+        bucket = os.getenv("SUPABASE_BUCKET")
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_ANON_KEY")
+        supabase = create_client(url, key)
+
+        with open(FILE_PATH, "rb") as f:
+            supabase.storage.from_(bucket).upload(FILE_PATH, f)
+        # print(f"Upload status: {res.status_code} - {res.text}")
+        logger.info(f"Uploaded stories to Supabase bucket {bucket} file {FILE_PATH}")   
+
+    def _load_stories_supabase(self):
+        url = os.getenv("SUPABASE_URL")
+        anon_key = os.getenv("SUPABASE_ANON_KEY")
+        bucket = os.getenv("SUPABASE_BUCKET")
+        FILE_PATH = self.stories_backup_file # local path        
+        # Initialize Supabase client
+        supabase = create_client(url, anon_key)
+
+        # Download file as bytes
+        response = supabase.storage.from_(bucket).download(FILE_PATH)
+        
+        # Save the downloaded content locally
+        with open(self.stories_backup_file, "wb") as f:
+            f.write(response)
+        logger.info(f"Loaded stories from Supabase bucket {bucket} file {FILE_PATH}")
+
     def _save_stories_backup(self) -> None:
         try:
+            self._save_stories_supabase()
             with open(self.stories_backup_file, "wb") as f:
                 pickle.dump(dict(self.stories), f)
             logger.info("Saved %s stories to backup", len(self.stories))
@@ -160,7 +192,13 @@ class StorySearchEngine:
 
     def _load_stories_backup(self) -> None:
         try:
+            self._load_stories_supabase()
             if os.path.exists(self.stories_backup_file):
+                # Override pickle's default behavior to look for Story class in __main__
+                from ..models import Story  # importing here to make sure it's available
+                import sys
+                sys.modules['__main__'].Story = Story
+                
                 with open(self.stories_backup_file, "rb") as f:
                     self.stories = pickle.load(f)
                 logger.info("Loaded %s stories from backup", len(self.stories))

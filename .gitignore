@@ -39,3 +39,6 @@ tools/analyse/server/batch-results/
 
 # Misc
 *.log
+.env
+*.pkl
+__pycache__/
